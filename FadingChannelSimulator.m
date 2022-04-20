@@ -23,12 +23,13 @@ function  [ChOut, ChannelProfile] = FadingChannelSimulator(in, InputVar)
 % [ChOut, ChannelProfile] = FadingChannelSimulator(in, InputVar)
 %
 % (1) Output Parameters
-% ChOut                 : Faded signal output vector (column vector)
+% ChOut                   : Faded signal output vector (column vector)
 % ChannelProfile
-%   |- AvgPathGaindB    : Average path gain in dB
-%   |- PathDelaySec     ; Path delays [sec]
-%   |- PathDelaySample  : Path delays [samples]
-%   |- NumPaths         : number of paths
+%   |- AvgPathGaindB      : Average path gain in dB
+%   |- PathDelaySec       : Path delays [sec]
+%   |- PathDelaySample    : Path delays [samples]
+%   |- NumPaths           : number of paths
+%   |- PathGains          : Path gains for entire time instances of the channel input vrctor (sample-by-multipath matrix)
 %
 % (2) Input Parameters
 % in                                : Input signal (column vector)
@@ -256,6 +257,7 @@ if(strcmp(ch_model,'TU-6') || strcmp(ch_model,'TDL-A') || strcmp(ch_model,'TDL-B
                                 'NumSinusoids',8, ...
                                 'RandomStream','mt19937ar with seed', ...
                                 'Seed',seed, ...
+                                'PathGainsOutputPort',true, ...
                                 'Visualization','off');
     ChanInfo = info(Chan);
     ChannelFilterDelay          = ChanInfo.ChannelFilterDelay;
@@ -274,6 +276,7 @@ elseif(strcmp(ch_model,'TDL-D') || strcmp(ch_model,'TDL-E') || strcmp(ch_model,'
                                 'NumSinusoids',8, ...
                                 'RandomStream','mt19937ar with seed', ...
                                 'Seed',seed, ...
+                                'PathGainsOutputPort',true, ...
                                 'Visualization','OFF');
     ChanInfo = info(Chan);
     ChannelFilterDelay          = ChanInfo.ChannelFilterDelay;
@@ -290,7 +293,8 @@ filter_in   = [in(end - MaxDelaySample + 1 : end, 1) ; ...        % dummy
                in(1 : MaxDelaySample + ChannelFilterDelay, 1)];   % dummy
 
 Ns          = length(filter_in(:,1));
-fadedSig    = zeros(Ns, 1);
+fadedSig	= zeros(Ns, 1);
+PathGains	= zeros(Ns, NumPaths);
 
 % channel output
 % The first and last portions of the input signal are used for dummy samples corresponding to the amount of the maximum delay spread and channel filter delay.
@@ -304,17 +308,19 @@ else
     SEGMENT_NUM = ceil(Ns/SEGMENT_SIZE);	% # of channel segments
 
     for seg_idx = 1 : SEGMENT_NUM-1
-        fadedSig(SEGMENT_SIZE*(seg_idx-1)+1:SEGMENT_SIZE*seg_idx,1) = ...
-            Chan(filter_in(SEGMENT_SIZE*(seg_idx-1)+1:SEGMENT_SIZE*seg_idx,1));
+        [fadedSig(SEGMENT_SIZE*(seg_idx-1)+1:SEGMENT_SIZE*seg_idx,1),PathGains(SEGMENT_SIZE*(seg_idx-1)+1:SEGMENT_SIZE*seg_idx,:)] ...
+            = Chan(filter_in(SEGMENT_SIZE*(seg_idx-1)+1:SEGMENT_SIZE*seg_idx,1));
     end
     seg_idx = SEGMENT_NUM;
-    fadedSig(SEGMENT_SIZE*(seg_idx-1)+1:end,1) = Chan(filter_in(SEGMENT_SIZE*(seg_idx-1)+1:end,1));
+    [fadedSig(SEGMENT_SIZE*(seg_idx-1)+1:end,1),PathGains(SEGMENT_SIZE*(seg_idx-1)+1:end,:)] ...
+        = Chan(filter_in(SEGMENT_SIZE*(seg_idx-1)+1:end,1));
 end
 % ignore the channel output before the last multipath signal is input into the channel
 ChOut = fadedSig(ChannelFilterDelay + MaxDelaySample + 1 : end - MaxDelaySample);
 % ------------------------------------------------------------------------
 
-ChannelProfile.AvgPathGaindB    = AvgPathGaindB;
-ChannelProfile.PathDelaySec     = PathDelaySec;
-ChannelProfile.PathDelaySample  = PathDelaySample;
-ChannelProfile.NumPaths         = NumPaths;
+ChannelProfile.AvgPathGaindB        = AvgPathGaindB;
+ChannelProfile.PathDelaySec         = PathDelaySec;
+ChannelProfile.PathDelaySample      = PathDelaySample;
+ChannelProfile.NumPaths             = NumPaths;
+ChannelProfile.PathGains            = PathGains;
