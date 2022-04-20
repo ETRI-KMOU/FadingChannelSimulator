@@ -22,10 +22,11 @@ Last Update: 2022.04.01.
 (1) Output Parameters
 ChOut                 : Faded signal output vector (column vector)
 ChannelProfile
-  |- AvgPathGaindB    : Average path gain in dB
-  |- PathDelaySec     ; Path delays [sec]
-  |- PathDelaySample  : Path delays [samples]
+  |- AvgPathGaindB   : Average path gain in dB
+  |- PathDelaySec      : Path delays [sec]
+  |- PathDelaySample : Path delays [samples]
   |- NumPaths         : number of paths
+  |- PathGains         : Path gains for entire time instances of the channel input vrctor (sample-by-multipath matrix)
 
 (2) Input Parameters
 in                                : Input signal (column vector)
